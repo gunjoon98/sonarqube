@@ -1,0 +1,85 @@
+pipeline {
+
+  tools {
+        maven "maven" // Specify the Maven tool name configured in Jenkins
+    }
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    jenkins/agent-type: kaniko
+spec:
+  containers:
+    - name: jnlp
+      image: jenkins/inbound-agent:latest
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "500m"
+        limits:
+          memory: "1024Mi"
+          cpu: "1000m"
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      command:
+        - /busybox/cat
+      tty: true
+      resources:
+        requests:
+          memory: "2048Mi"
+          cpu: "2000m"
+        limits:
+          memory: "4096Mi"
+          cpu: "4000m"
+      volumeMounts:
+        - name: docker-config
+          mountPath: /kaniko/.docker/
+  volumes:
+    - name: docker-config
+      secret:
+        secretName: docker-config
+            """
+        }
+    }
+
+    environment {
+        ACR_NAME           = "SongAksAcr" // ACR 이름
+        ACR_LOGIN_SERVER   = "songaksacr.azurecr.io" // ACR 로그인 서버
+        IMAGE_NAME         = "nginx"
+        RELEASE            = "1.0.0"
+        IMAGE_TAG          = "${RELEASE}-${BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    sh 'mvn -version' // Maven을 사용할 수 있음을 확인하기 위한 명령
+                }
+            }
+        }
+
+        stage("Build Docker Image & Push to ACR") {
+            steps {
+                container("kaniko") {
+                    script {
+                        def context = "."
+                        def dockerfile = "Dockerfile"
+                        def image = "${ACR_LOGIN_SERVER}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+                        sh "/kaniko/executor --context ${context} --dockerfile ${dockerfile} --destination ${image}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "The process is completed."
+        }
+    }
+}
