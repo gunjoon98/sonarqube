@@ -61,20 +61,6 @@ spec:
                 }
             }
         }
-
-        stage("Build Docker Image & Push to ACR") {
-            steps {
-                container("kaniko") {
-                    script {
-                        def context = "."
-                        def dockerfile = "Dockerfile"
-                        def image = "${ACR_LOGIN_SERVER}/${IMAGE_NAME}:${IMAGE_TAG}"
-
-                        sh "/kaniko/executor --context ${context} --dockerfile ${dockerfile} --destination ${image}"
-                    }
-                }
-            }
-        }
     }
 
     post {
