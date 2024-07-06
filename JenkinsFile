@@ -61,6 +61,14 @@ spec:
                 }
             }
         }
+
+        stage('SonarQube analysis') {
+             steps {
+	    withSonarQubeEnv('sonarqube') {
+                     sh 'mvn sonar:sonar'   
+                  }
+             }
+         }
     }
 
     post {
